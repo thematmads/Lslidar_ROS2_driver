@@ -9,6 +9,8 @@ cx:
       add_multicast: false        # 雷达是否开启组播
       group_ip: "224.1.1.2"       # 组播IP地址
       #pcap: "/home/ls/Desktop/capture.pcap"          # PCAP文件路径，离线解析PCAP数据时打开注释
+      motor_start_on_launch: true # tell the motor to spin on start (a stop sent before stays in the LiDAR)
+      motor_stop_on_exit: true    # tell the motor to stop when the node ends (Ctrl+C, not a kill)
       
       # 点云处理参数
       pcl_type: false             # 点云类型  true: xyzi

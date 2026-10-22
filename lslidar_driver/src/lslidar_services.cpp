@@ -32,6 +32,7 @@ namespace lslidar_driver {
                          std::to_string(difop_data[12]) + "." + std::to_string(difop_data[13]);
 
             difop_valid.store(true);
+            difop_seen.store(true);
             return 0;
         } else {
             LS_ERROR << "Can not get dev packet! Set failed !!!" << LS_END;
@@ -327,6 +328,33 @@ namespace lslidar_driver {
                                          std::shared_ptr<lslidar_msgs::srv::IpAndPort::Response> res) {
 
         return LslidarServices::setIpAndPort(req, res);
+    }
+
+    bool LslidarCxServices::setMotorRunning(bool run, bool use_last) {
+        unsigned char ucwp_data[1206];
+        if (use_last) {
+            if (!difop_seen.load()) {
+                return false;
+            }
+            {
+                std::lock_guard<std::mutex> lock(difop_data_mutex);
+                memcpy(ucwp_data, difop_data, 1206);
+            }
+            setUcwpPacketHeader(ucwp_data);
+        } else if (!setUcwpData(ucwp_data)) {
+            return false;
+        }
+
+        if (run) {
+            if (((ucwp_data[8] << 8) | ucwp_data[9]) == 0) {   // no speed set: 600 rpm (10 Hz), as motor_control does
+                ucwp_data[8] = 0x02;
+                ucwp_data[9] = 0x58;
+            }
+            ucwp_data[41] = 0x00;
+        } else {
+            ucwp_data[41] = 0x01;
+        }
+        return sendUcwpPacketTolidar(ucwp_data);
     }
 
     bool LslidarCxServices::setMotorControl(std::shared_ptr<lslidar_msgs::srv::MotorControl::Request> req,

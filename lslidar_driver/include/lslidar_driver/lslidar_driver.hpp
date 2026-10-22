@@ -59,6 +59,9 @@ namespace lslidar_driver {
         virtual bool initialize() = 0;
 
         virtual bool poll() = 0;
+
+        // After the node stopped spinning, before rclcpp::shutdown (e.g. tell the LiDAR to stop its motor)
+        virtual void onExit() {}
         
         void setPointRGB(PointXYZIRT* point)
         {

@@ -29,6 +29,7 @@
 #include <unistd.h>  
 #include <regex>
 #include <cstdio>
+#include <cstring>
 #include <string>
 #include <mutex>
 #include <yaml-cpp/yaml.h>
@@ -106,9 +107,14 @@ namespace lslidar_driver {
         virtual bool setTimeMode(std::shared_ptr<lslidar_msgs::srv::TimeMode::Request> req,
                                  std::shared_ptr<lslidar_msgs::srv::TimeMode::Response> res);
 
+        // A status (difop) packet came in since the last configuration was sent / ever came in
+        bool difopFresh() const { return difop_valid.load(); }
+        bool difopSeen() const { return difop_seen.load(); }
+
     protected:
         std::mutex difop_data_mutex;
         std::atomic<bool> difop_valid{false};
+        std::atomic<bool> difop_seen{false};
         unsigned char difop_data[1206];
         std::string lslidar_ip;
 
@@ -131,6 +137,10 @@ namespace lslidar_driver {
         // 机械式雷达控制电机启停
         bool setMotorControl(std::shared_ptr<lslidar_msgs::srv::MotorControl::Request> req,
                              std::shared_ptr<lslidar_msgs::srv::MotorControl::Response> res);
+
+        // The motor on or off, keeping the speed the LiDAR is set to (600 rpm when it reports none). use_last: build
+        // the configuration from the last status packet even if it was used before (on exit, when no new ones come)
+        bool setMotorRunning(bool run, bool use_last);
         
         // 机械式雷达控制雷达上下电
         bool setPowerControl(std::shared_ptr<lslidar_msgs::srv::PowerControl::Request> req,

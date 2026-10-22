@@ -489,6 +489,12 @@ Stop Rotation：
 ros2 service call /cx/motor_control lslidar_msgs/srv/MotorControl "{motor_control: '0'}"
 ~~~
 
+Start and stop with the driver (C-series, parameters `motor_start_on_launch` and `motor_stop_on_exit`, both true by
+default): the driver tells the motor to spin when it starts, before it waits for point data, and to stop when it
+ends normally (Ctrl+C or a stop from launch; a kill sends nothing). The stop setting stays in the LiDAR across
+power cycles, which is why the driver also starts it. The speed the LiDAR is set to is kept (600 rpm when it
+reports none). Set either parameter to false to leave the motor as it is.
+
 
 
 

@@ -81,6 +81,7 @@ int main(int argc, char** argv) {
     executor.add_node(node);
     executor.spin();
 
+    driver->onExit();   // e.g. stop the LiDAR's motor (CX, motor_stop_on_exit)
     rclcpp::shutdown();
     return 0;
 }

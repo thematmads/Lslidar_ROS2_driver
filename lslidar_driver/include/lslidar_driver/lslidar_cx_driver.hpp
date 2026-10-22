@@ -193,7 +193,12 @@ namespace lslidar_driver {
 
         bool determineLidarModel();
 
+        // Tells the LiDAR to stop its motor when motor_stop_on_exit
+        void onExit() override;
+
     public:
+        bool motor_start_on_launch = true;   // tell the motor to spin on start (a stop sent earlier persists)
+        bool motor_stop_on_exit = true;      // tell it to stop when the node ends normally (not on a kill)
         int scan_num{};
         int angle_disable_min{};
         int angle_disable_max{};

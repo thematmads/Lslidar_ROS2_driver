@@ -68,6 +68,8 @@ namespace lslidar_driver {
         node_->declare_parameter<double>("yaw", 0.0);
         node_->declare_parameter<bool>("read_once", false);
         node_->declare_parameter<bool>("read_fast", false);
+        node_->declare_parameter<bool>("motor_start_on_launch", true);
+        node_->declare_parameter<bool>("motor_stop_on_exit", true);
         node_->declare_parameter<double>("repeat_delay", 0.0);
 
         node_->declare_parameter<std::string>("filter_angle_file", "");
@@ -97,6 +99,8 @@ namespace lslidar_driver {
         node_->get_parameter("min_range", min_range);
         node_->get_parameter("max_range", max_range);
         node_->get_parameter("is_pretreatment", is_pretreatment);
+        node_->get_parameter("motor_start_on_launch", motor_start_on_launch);
+        node_->get_parameter("motor_stop_on_exit", motor_stop_on_exit);
         node_->get_parameter("x_offset", x_offset);
         node_->get_parameter("y_offset", y_offset);
         node_->get_parameter("z_offset", z_offset);
@@ -310,6 +314,28 @@ namespace lslidar_driver {
         }
 
         rclcpp::sleep_for(std::chrono::seconds(1));
+        // Before the model check, which waits for point packets: a LiDAR whose motor was stopped (on exit, or by
+        // motor_control 0) stays stopped across power cycles and sends none until told to spin
+        if (motor_start_on_launch && !dump_file.empty()) {
+            motor_start_on_launch = false;   // replaying a pcap: no LiDAR to tell
+        }
+        if (motor_start_on_launch) {
+            auto cx = std::dynamic_pointer_cast<LslidarCxServices>(services_);
+            bool sent = false;
+            for (int i = 0; i < 50 && rclcpp::ok() && !sent; ++i) {   // up to 5 s for a status packet
+                if (cx && cx->difopFresh()) {
+                    sent = cx->setMotorRunning(true, false);
+                }
+                if (!sent) {
+                    rclcpp::sleep_for(std::chrono::milliseconds(100));
+                }
+            }
+            if (sent) {
+                LS_MSG << "Motor: told to spin" << LS_END;
+            } else {
+                LS_WARN << "Motor: no status packet from the LiDAR, could not tell it to spin" << LS_END;
+            }
+        }
         while (rclcpp::ok() && !determineLidarModel()) {
             LS_WARN << "Lidar model error, please check Lidar model. Retrying..." << LS_END;
     	    rclcpp::sleep_for(std::chrono::seconds(1));
@@ -868,6 +894,19 @@ namespace lslidar_driver {
         last_packet_time = current_packet_time;
 
         return true;
+    }
+
+    void LslidarCxDriver::onExit() {
+        if (!motor_stop_on_exit || !dump_file.empty()) {
+            return;
+        }
+        // the status packets stopped with the node: the last one is the base of the configuration packet
+        auto cx = std::dynamic_pointer_cast<LslidarCxServices>(services_);
+        if (cx && cx->setMotorRunning(false, true)) {
+            LS_MSG << "Motor: told to stop" << LS_END;
+        } else {
+            LS_WARN << "Motor: no status packet seen, could not tell it to stop" << LS_END;
+        }
     }
 
     void LslidarCxDriver::difopPoll() {
